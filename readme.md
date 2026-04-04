@@ -2,8 +2,9 @@
 
 ### 📋 Описание проекта и возможности  
 
-**GC-MetricsServer** - это программа-сервис, которая через HTTP-endpoint предоставляет в формате Prometheus метрики памяти  
-и сборщика мусора (GC), а также позволяет динамически настраивать процент GC и получать профили через pprof.  
+**GC-MetricsServer** - это программа-сервис, которая через HTTP-endpoint предоставляет в формате Prometheus  
+метрики памяти и сборщика мусора (GC), а также позволяет динамически настраивать процент GC и получать  
+профили через pprof.  
 
 ### 🖥️ Возможности
 
@@ -85,10 +86,10 @@
 
 **После успешного запуска:**  
 
-    Веб-интерфейс: http://localhost:8080
+    Веб-интерфейс:      http://localhost:8080
     Prometheus метрики: http://localhost:8080/metrics
-    JSON API: http://localhost:8080/api/stats
-    pprof: http://localhost:8080/debug/pprof/
+    JSON API:           http://localhost:8080/api/stats
+    pprof:              http://localhost:8080/debug/pprof/
 
 Остановка:  
 
