@@ -1,88 +1,91 @@
-package internal
+package server
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log"
 	"net/http"
-	_ "net/http/pprof"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
+	"github.com/IPampurin/GC-MetricsServer/internal/configuration"
 	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-func Run() error {
-	_ = godotenv.Load()
+// Server - обёртка над gin.Engine и net/http.Server
+type Server struct {
+	cfg        *configuration.Config
+	engine     *gin.Engine
+	httpServer *http.Server
+}
 
-	host := getEnv("HTTP_HOST", "localhost")
-	port := getEnv("HTTP_PORT", "8080")
-	addr := host + ":" + port
-
-	metricsTimeout := getEnv("METRICS_TIMEOUT", "3s")
-	if _, err := time.ParseDuration(metricsTimeout); err != nil {
-		log.Printf("Некорректный METRICS_TIMEOUT='%s', используем 3s", metricsTimeout)
-		metricsTimeout = "3s"
-	}
+// New создаёт движок Gin, регистрирует маршруты
+func New(cfg *configuration.Config) (*Server, error) {
 
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
-	r.Use(gin.Recovery(), gin.Logger())
+	r.Use(gin.Recovery())
 
-	// Prometheus
-	reg := prometheus.NewRegistry()
-	reg.MustRegister(NewMemStatsCollector())
-	r.GET("/metrics", gin.WrapH(promhttp.HandlerFor(reg, promhttp.HandlerOpts{})))
-
-	// API
-	r.GET("/api/stats", HandleAPIMetrics)
-	r.GET("/gc_percent", HandleGCPercent)
-	r.POST("/gc_percent", HandleGCPercent)
-
-	r.GET("/api/config", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"metrics_timeout": metricsTimeout})
-	})
-
-	// Статика и главная страница
+	// раздача статики
 	r.Static("/static", "./web/static")
 	r.GET("/", func(c *gin.Context) {
 		c.File("./web/index.html")
 	})
 
-	// pprof
-	pprofMux := http.NewServeMux()
-	pprofMux.Handle("/debug/pprof/", http.DefaultServeMux)
-	r.Any("/debug/pprof/*any", gin.WrapH(pprofMux))
+	// остальные маршруты
+	setupRoutes(r, cfg)
 
-	srv := &http.Server{Addr: addr, Handler: r}
+	s := &Server{
+		cfg:    cfg,
+		engine: r,
+	}
 
+	// создаём http.Server
+	s.httpServer = &http.Server{
+		Addr:    s.Addr(),
+		Handler: s.engine,
+	}
+
+	return s, nil
+}
+
+// Addr - адрес прослушивания в формате host:port
+func (s *Server) Addr() string {
+
+	return fmt.Sprintf("%s:%s", s.cfg.Host, s.cfg.Port)
+}
+
+// Run запускает HTTP-сервер
+func (s *Server) Run(ctx context.Context) error {
+
+	log.Printf("Сервер запущен на http://%s", s.httpServer.Addr)
+	log.Printf("Веб-интерфейс: http://%s/", s.httpServer.Addr)
+	log.Printf("Prometheus метрики: http://%s/metrics", s.httpServer.Addr)
+	log.Printf("Управление GOGC: GET/POST http://%s/gc_percent", s.httpServer.Addr)
+	log.Printf("pprof профили: http://%s/debug/pprof/", s.httpServer.Addr)
+
+	shutdownTimeout := 30 * time.Second
+
+	srv := &http.Server{
+		Addr:    s.Addr(),
+		Handler: s.engine,
+	}
+
+	errCh := make(chan error, 1)
 	go func() {
-		log.Printf("Сервер запущен на http://%s", addr)
-		log.Printf("Веб-интерфейс: http://%s/", addr)
-		log.Printf("Prometheus: http://%s/metrics", addr)
-		log.Printf("GOGC: GET/POST http://%s/gc_percent", addr)
-		log.Printf("pprof: http://%s/debug/pprof/", addr)
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Ошибка запуска: %v", err)
+		err := srv.ListenAndServe()
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			errCh <- err
 		}
 	}()
 
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-	log.Println("Останавливаем сервер...")
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	return srv.Shutdown(ctx)
-}
+	select {
+	case <-ctx.Done():
+		shutCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+		defer cancel()
+		return srv.Shutdown(shutCtx)
 
-func getEnv(key, def string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
+	case err := <-errCh:
+		return err
 	}
-	return def
 }

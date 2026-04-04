@@ -1,7 +1,7 @@
-let refreshInterval = 3000; // по умолчанию 3 секунды
+let refreshIntervalMs = 3000;   // интервал обновления, будет получен из /api/config
 let intervalId = null;
 
-// Функция загрузки метрик
+// Загрузка метрик с /api/stats
 async function fetchMetrics() {
     try {
         const response = await fetch('/api/stats');
@@ -16,6 +16,7 @@ async function fetchMetrics() {
     }
 }
 
+// Отрисовка карточек метрик
 function renderMetrics(data) {
     const grid = document.getElementById('metricsGrid');
     const cards = [
@@ -39,6 +40,7 @@ function renderMetrics(data) {
     });
 }
 
+// Установка нового процента GOGC
 async function setGcPercent(percent) {
     try {
         const response = await fetch(`/gc_percent?percent=${percent}`, { method: 'POST' });
@@ -49,44 +51,41 @@ async function setGcPercent(percent) {
         const result = await response.json();
         const statusDiv = document.getElementById('gcStatus');
         statusDiv.innerHTML = `✅ GOGC изменён с ${result.old_percent}% на ${result.new_percent}%`;
-        setTimeout(() => { if (statusDiv.innerHTML.includes('✅')) statusDiv.innerHTML = ''; }, 3000);
-        fetchMetrics();
+        setTimeout(() => {
+            if (statusDiv.innerHTML.includes('✅')) statusDiv.innerHTML = '';
+        }, 3000);
+        fetchMetrics(); // обновляем отображение
     } catch (err) {
         document.getElementById('gcStatus').innerHTML = `❌ Ошибка: ${err.message}`;
     }
 }
 
+// Загрузка конфигурации (интервал обновления)
 async function loadConfig() {
     try {
         const response = await fetch('/api/config');
         if (!response.ok) throw new Error('Не удалось загрузить конфигурацию');
         const config = await response.json();
-        if (config.metrics_timeout) {
-            let ms = 3000;
-            const parsed = parseFloat(config.metrics_timeout);
-            if (!isNaN(parsed)) {
-                ms = parsed * 1000;
-            } else if (config.metrics_timeout.endsWith('s')) {
-                ms = parseFloat(config.metrics_timeout) * 1000;
-            }
-            if (!isNaN(ms) && ms > 0) {
-                refreshInterval = ms;
-                // перезапускаем таймер с новым интервалом
+        if (config.metrics_timeout && typeof config.metrics_timeout === 'number') {
+            let newInterval = config.metrics_timeout * 1000;
+            if (newInterval > 0 && newInterval !== refreshIntervalMs) {
+                refreshIntervalMs = newInterval;
                 if (intervalId) clearInterval(intervalId);
-                intervalId = setInterval(fetchMetrics, refreshInterval);
-                console.log(`Интервал обновления установлен: ${refreshInterval/1000} сек`);
+                intervalId = setInterval(fetchMetrics, refreshIntervalMs);
+                console.log(`Интервал обновления установлен: ${refreshIntervalMs/1000} сек`);
             }
         }
     } catch (err) {
-        console.warn('Не удалось загрузить конфигурацию, используется интервал по умолчанию 3с');
+        console.warn('Не удалось загрузить конфиг, интервал по умолчанию 3с');
     }
 }
 
+// Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', async () => {
     await loadConfig();
     await fetchMetrics();
     if (!intervalId) {
-        intervalId = setInterval(fetchMetrics, refreshInterval);
+        intervalId = setInterval(fetchMetrics, refreshIntervalMs);
     }
 
     const setBtn = document.getElementById('setGcBtn');
