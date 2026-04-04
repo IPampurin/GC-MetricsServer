@@ -16,12 +16,23 @@
 ### 🗂️ Структура проекта  
 
 ``` bash
-gc-metrics-server/
-├── main.go           # основной код сервера
-├── go.mod, go.sum    # зависимости (go mod init + go get)
-├── Dockerfile        # 
-├── compose.yml       # 
-└── readme.md         # инструкция по запуску и использованию
+.
+├── cmd
+│   └── main.go                 # точка входа, запуск сервера
+├── internal
+│   ├── api.go                  # обработчики /api/stats и /gc_percent
+│   ├── collector.go            # Prometheus коллектор и вспомогательные функции
+│   └── server.go               # инициализация Gin, graceful shutdown
+├── web
+│   ├── index.html
+│   ├── script.js
+│   └── style.css
+├── .env
+├── compose.yml
+├── Dockerfile
+├── go.mod
+├── go.sum
+└── readme.md
 ```
 
 ### 🚀 Быстрый старт  

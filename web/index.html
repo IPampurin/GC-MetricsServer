@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GC & Memory Monitor — метрики в реальном времени</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header class="wb-header">
+        <div class="logo">
+            <div class="logo-icon">⚙️</div>
+            <div class="logo-text">GC<span>Monitor</span></div>
+        </div>
+        <div class="header-tagline">
+            <span>📊</span> Метрики памяти и сборщика мусора
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="form-card" style="margin-bottom: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+                <h2 style="margin:0">⚙️ Управление GOGC</h2>
+                <div>
+                    <span style="font-weight:500;">Текущий процент:</span>
+                    <span id="currentGcPercent" style="font-size:1.5rem; font-weight:bold; margin:0 12px;">-</span>
+                    <input type="number" id="newGcPercent" placeholder="Новое значение" value="100" step="10" style="width:100px;">
+                    <button id="setGcBtn" class="wb-button" style="padding: 8px 20px;">Установить</button>
+                    <button id="refreshGcBtn" class="wb-button secondary">Обновить</button>
+                </div>
+            </div>
+            <div id="gcStatus" style="margin-top: 12px; font-size:0.85rem; color:#6c757d;"></div>
+        </div>
+
+        <div class="section-header">
+            <h2>📈 Актуальные метрики</h2>
+            <span id="updateIndicator" style="font-size:12px; color:#888;"></span>
+        </div>
+
+        <div class="metrics-grid" id="metricsGrid">
+        </div>
+
+        <div style="text-align: center; margin-top: 40px;">
+            <a href="/metrics" target="_blank" class="wb-button secondary" style="margin:0 8px;">📊 Prometheus метрики</a>
+            <a href="/debug/pprof/" target="_blank" class="wb-button secondary">🔍 pprof профилирование</a>
+        </div>
+    </div>
+
+    <footer class="wb-footer">
+        GC Monitor — реальные метрики памяти, GC, возможность изменения GOGC
+    </footer>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>
