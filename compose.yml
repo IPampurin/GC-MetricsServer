@@ -6,7 +6,7 @@ services:
     build: .
     container_name: metrics-server
     ports:
-      - ${HTTP_PORT}:8080
+      - ${HTTP_PORT}:${HTTP_PORT}
     env_file:
       - .env
     networks:

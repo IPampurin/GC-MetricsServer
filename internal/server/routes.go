@@ -3,6 +3,8 @@ package server
 import (
 	"net/http"
 
+	_ "net/http/pprof"
+
 	"github.com/IPampurin/GC-MetricsServer/internal/collector"
 	"github.com/IPampurin/GC-MetricsServer/internal/configuration"
 	"github.com/IPampurin/GC-MetricsServer/internal/handlers"
@@ -33,7 +35,5 @@ func setupRoutes(r *gin.Engine, cfg *configuration.Config) {
 	})
 
 	// pprof профилирование
-	pprofMux := http.NewServeMux()
-	pprofMux.Handle("/debug/pprof/", http.DefaultServeMux)
-	r.Any("/debug/pprof/*any", gin.WrapH(pprofMux))
+	r.Any("/debug/pprof/*any", gin.WrapH(http.DefaultServeMux))
 }

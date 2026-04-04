@@ -11,6 +11,7 @@ import (
 type MetricsJSON struct {
 	AllocBytes      string  `json:"alloc_bytes"`       // используемая память (человеко‑читаемый вид)
 	TotalAllocBytes string  `json:"total_alloc_bytes"` // всего выделено за всё время
+	Mallocs         uint64  `json:"mallocs"`           // количество аллокаций (выделений памяти) – добавлено
 	NumGC           uint32  `json:"num_gc"`            // количество сборок GC
 	LastGCTime      string  `json:"last_gc_time"`      // время последнего GC в формате "2006-01-02 15:04:05.000"
 	GCCPUFraction   float64 `json:"gc_cpu_fraction"`   // доля CPU на GC
@@ -37,6 +38,7 @@ func GetCurrentMetrics() MetricsJSON {
 	return MetricsJSON{
 		AllocBytes:      formatBytes(ms.Alloc),
 		TotalAllocBytes: formatBytes(ms.TotalAlloc),
+		Mallocs:         ms.Mallocs,
 		NumGC:           ms.NumGC,
 		LastGCTime:      lastGCTimeStr,
 		GCCPUFraction:   ms.GCCPUFraction,
@@ -51,6 +53,7 @@ func formatBytes(b uint64) string {
 	if b < unit {
 		return strconv.FormatUint(b, 10) + " B"
 	}
+
 	div, exp := uint64(unit), 0
 	for n := b / unit; n >= unit; n /= unit {
 		div *= unit

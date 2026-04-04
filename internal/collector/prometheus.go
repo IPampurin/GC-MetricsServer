@@ -11,6 +11,7 @@ import (
 type MemStatsCollector struct {
 	allocBytes      *prometheus.Desc
 	totalAllocBytes *prometheus.Desc
+	mallocs         *prometheus.Desc
 	numGC           *prometheus.Desc
 	lastGCTime      *prometheus.Desc
 	gcCPUFraction   *prometheus.Desc
@@ -29,6 +30,11 @@ func NewMemStatsCollector() *MemStatsCollector {
 		totalAllocBytes: prometheus.NewDesc(
 			"go_memstats_total_alloc_bytes",
 			"Общее количество выделенных байт за всё время (TotalAlloc)",
+			nil, nil,
+		),
+		mallocs: prometheus.NewDesc(
+			"go_memstats_mallocs_total",
+			"Общее количество выполненных аллокаций (выделений памяти)",
 			nil, nil,
 		),
 		numGC: prometheus.NewDesc(
@@ -56,9 +62,9 @@ func NewMemStatsCollector() *MemStatsCollector {
 
 // Describe отправляет описания метрик в канал
 func (c *MemStatsCollector) Describe(ch chan<- *prometheus.Desc) {
-
 	ch <- c.allocBytes
 	ch <- c.totalAllocBytes
+	ch <- c.mallocs
 	ch <- c.numGC
 	ch <- c.lastGCTime
 	ch <- c.gcCPUFraction
@@ -77,6 +83,7 @@ func (c *MemStatsCollector) Collect(ch chan<- prometheus.Metric) {
 
 	ch <- prometheus.MustNewConstMetric(c.allocBytes, prometheus.GaugeValue, float64(ms.Alloc))
 	ch <- prometheus.MustNewConstMetric(c.totalAllocBytes, prometheus.CounterValue, float64(ms.TotalAlloc))
+	ch <- prometheus.MustNewConstMetric(c.mallocs, prometheus.CounterValue, float64(ms.Mallocs))
 	ch <- prometheus.MustNewConstMetric(c.numGC, prometheus.CounterValue, float64(ms.NumGC))
 	ch <- prometheus.MustNewConstMetric(c.lastGCTime, prometheus.GaugeValue, float64(ms.LastGC)/1e9)
 	ch <- prometheus.MustNewConstMetric(c.gcCPUFraction, prometheus.GaugeValue, ms.GCCPUFraction)

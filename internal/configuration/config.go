@@ -20,7 +20,7 @@ func Load() (*Config, error) {
 	cfg := &Config{
 		Host:           getEnv("HTTP_HOST", "0.0.0.0"),
 		Port:           getEnv("HTTP_PORT", "8081"),
-		MetricsTimeout: getDuration("METRICS_TIMEOUT", 180*time.Second),
+		MetricsTimeout: getDuration("METRICS_TIMEOUT", 3*time.Second),
 	}
 
 	if err := cfg.Validate(); err != nil {

@@ -12,6 +12,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+const shutdownTimeout = 30 * time.Second
+
 // Server - обёртка над gin.Engine и net/http.Server
 type Server struct {
 	cfg        *configuration.Config
@@ -27,7 +29,7 @@ func New(cfg *configuration.Config) (*Server, error) {
 	r.Use(gin.Recovery())
 
 	// раздача статики
-	r.Static("/static", "./web/static")
+	r.Static("/static", "./web")
 	r.GET("/", func(c *gin.Context) {
 		c.File("./web/index.html")
 	})
@@ -40,7 +42,7 @@ func New(cfg *configuration.Config) (*Server, error) {
 		engine: r,
 	}
 
-	// создаём http.Server
+	// создаём http.Server и сохраняем в структуру
 	s.httpServer = &http.Server{
 		Addr:    s.Addr(),
 		Handler: s.engine,
@@ -55,7 +57,7 @@ func (s *Server) Addr() string {
 	return fmt.Sprintf("%s:%s", s.cfg.Host, s.cfg.Port)
 }
 
-// Run запускает HTTP-сервер
+// Run запускает HTTP-сервер (использует s.httpServer)
 func (s *Server) Run(ctx context.Context) error {
 
 	log.Printf("Сервер запущен на http://%s", s.httpServer.Addr)
@@ -64,17 +66,9 @@ func (s *Server) Run(ctx context.Context) error {
 	log.Printf("Управление GOGC: GET/POST http://%s/gc_percent", s.httpServer.Addr)
 	log.Printf("pprof профили: http://%s/debug/pprof/", s.httpServer.Addr)
 
-	shutdownTimeout := 30 * time.Second
-
-	srv := &http.Server{
-		Addr:    s.Addr(),
-		Handler: s.engine,
-	}
-
 	errCh := make(chan error, 1)
 	go func() {
-		err := srv.ListenAndServe()
-		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+		if err := s.httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errCh <- err
 		}
 	}()
@@ -83,8 +77,7 @@ func (s *Server) Run(ctx context.Context) error {
 	case <-ctx.Done():
 		shutCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 		defer cancel()
-		return srv.Shutdown(shutCtx)
-
+		return s.httpServer.Shutdown(shutCtx)
 	case err := <-errCh:
 		return err
 	}
